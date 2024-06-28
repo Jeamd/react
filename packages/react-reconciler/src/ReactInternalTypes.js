@@ -75,21 +75,78 @@ export type Fiber = {|
   // alternate versions of the tree. We put this on a single object for now to
   // minimize the number of objects created during the initial render.
 
-  // Tag identifying the type of fiber.
+  /**
+   * DOM 实例相关
+   */
+  // 标记不同组件类型 
   tag: WorkTag,
+
+  // 组件类型 div span 组件构造函数
+  type: any,
+
+  // 实例对象,如类组件的实例 原生DOM实例,而function 组件没有实例,因此此属性为空
+  stateNode: any,
+
+  /**
+   * 构建 Fiber 树相关
+   */
+  // 指向自己的父级 Fiber 对象
+  return: Fiber | null, 
+  
+  // 指向自己的第一个子级的 Fiber 对象
+  child: Fiber | null,
+
+  // 指向自己的下一个兄弟 Fiber 对象
+  sibling: Fiber | null,
+
+  // 双缓存相关的属性
+  // 在Fiber树更新的过程中,每个 Fiber 都会有一个跟其对应的Fiber
+  // 我们称它为 current <===> workInProgress
+  // 在渲染完成之后他们会交换位置
+  // alternate 指向当前 Fiber 在 workInProgress 树中的对应 Fiber
+  alternate: Fiber | null,
+
+  /**
+   * 状态数据相关
+   */
+  // 即将更新的props
+  pendingProps: any, // This type will be more specific once we overload the tag.
+  // 旧的props
+  memoizedProps: any, // The props used to create the output.
+  // 旧的state
+  memoizedState: any,
+
+  /**
+   * 副作用相关
+   */
+  // 该 Fiber 对应的组件产生的状态更新或者初始化渲染会存放在这个队列里面
+  updateQueue: mixed,
+
+  // 用来记录当前 Fiber 要执行的Dom操作/这个属性名变成了Flags
+  // effectTag: SideEffectTag 
+  // flags: Flags,
+  // 任务过期时间/这个属性没有了
+  // expirationTime: ExpirationTime
+
+  // 字树中第一个 side effect
+  firstEffect: Fiber | null,
+  // 单链表用来快速查找下一个 side effect
+  nextEffect: Fiber | null,
+  // 子树中最后一个 side effect
+  lastEffect: Fiber | null,
+
+  // 当前组件及子组件处于何种渲染模式
+  mode: TypeOfMode,
+
 
   // Unique identifier of this child.
   key: null | string,
+  
 
   // The value of element.type which is used to preserve the identity during
   // reconciliation of this child.
   elementType: any,
 
-  // The resolved function/class/ associated with this fiber.
-  type: any,
-
-  // The local state associated with this fiber.
-  stateNode: any,
 
   // Conceptual aliases
   // parent : Instance -> return The parent happens to be the same as the
@@ -101,11 +158,8 @@ export type Fiber = {|
   // This is effectively the parent, but there can be multiple parents (two)
   // so this is only the parent of the thing we're currently processing.
   // It is conceptually the same as the return address of a stack frame.
-  return: Fiber | null,
 
   // Singly Linked List Tree Structure.
-  child: Fiber | null,
-  sibling: Fiber | null,
   index: number,
 
   // The ref last used to attach this node.
@@ -116,14 +170,10 @@ export type Fiber = {|
     | RefObject,
 
   // Input is the data coming into process this fiber. Arguments. Props.
-  pendingProps: any, // This type will be more specific once we overload the tag.
-  memoizedProps: any, // The props used to create the output.
 
   // A queue of state updates and callbacks.
-  updateQueue: mixed,
 
   // The state used to create the output
-  memoizedState: any,
 
   // Dependencies (contexts, events) for this fiber, if it has any
   dependencies: Dependencies | null,
@@ -134,29 +184,20 @@ export type Fiber = {|
   // parent. Additional flags can be set at creation time, but after that the
   // value should remain unchanged throughout the fiber's lifetime, particularly
   // before its child fibers are created.
-  mode: TypeOfMode,
 
   // Effect
   flags: Flags,
   subtreeFlags: Flags,
   deletions: Array<Fiber> | null,
 
-  // Singly linked list fast path to the next fiber with side-effects.
-  nextEffect: Fiber | null,
+  
 
-  // The first and last fiber with side-effect within this subtree. This allows
-  // us to reuse a slice of the linked list when we reuse the work done within
-  // this fiber.
-  firstEffect: Fiber | null,
-  lastEffect: Fiber | null,
-
-  lanes: Lanes,
+    : Lanes,
   childLanes: Lanes,
 
   // This is a pooled version of a Fiber. Every fiber that gets updated will
   // eventually have a pair. There are cases when we can clean up pairs to save
   // memory if we need to.
-  alternate: Fiber | null,
 
   // Time spent rendering this Fiber and its descendants for the current update.
   // This tells us how well the tree makes use of sCU for memoization.
