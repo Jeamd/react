@@ -68,6 +68,7 @@ function defineKeyPropWarningGetter(props, displayName) {
     }
   };
   warnAboutAccessingKey.isReactWarning = true;
+  // 给props 添加 key属性， 同时添加 get拦截
   Object.defineProperty(props, 'key', {
     get: warnAboutAccessingKey,
     configurable: true,
@@ -144,19 +145,42 @@ function warnIfStringRefCannotBeAutoConverted(config) {
  * @param {*} source An annotation object (added by a transpiler or otherwise)
  * indicating filename, line number, and/or other information.
  * @internal
+ * 接收参数返回 reactElement 对象
  */
 const ReactElement = function(type, key, ref, self, source, owner, props) {
   const element = {
     // This tag allows us to uniquely identify this as a React Element
+    /**
+     * REACT_ELEMENT_TYPE 类型的标注，是一个 symbol 值
+     * react 在最终渲染 DOM 的时候 需要缺包元素的类型是 REACT_ELEMENT_TYPE
+     * 需要此属性作为判断的依据
+     */
     $$typeof: REACT_ELEMENT_TYPE,
 
     // Built-in properties that belong on the element
+    /**
+     * 元素具体的类型值 如果元素节点 type 是属性中存储的 就是 div span 等
+     * 如果元素是组件 type 属性中存储的就是组件的构造函数
+     */
     type: type,
+    /**
+     * 元素的唯一标识
+     * 用作内部 vdom 比对 提升 DOM 操作的性能
+     */
     key: key,
+    /**
+     * 存储元素DOM对象或者组件的实例对象
+     */
     ref: ref,
+    /**
+     * 存储向组件内部传递的数据
+     */
     props: props,
 
     // Record the component responsible for creating this element.
+    /**
+     * 记录当前元素所属组件（记录当前元素是哪个组件创建的）
+     */
     _owner: owner,
   };
 
@@ -359,35 +383,65 @@ export function jsxDEV(type, config, maybeKey, source, self) {
  * Create and return a new ReactElement of the given type.
  * See https://reactjs.org/docs/react-api.html#createelement
  */
+/**
+ * 
+ * @param {*} type 元素类型
+ * @param {*} config 配置属性
+ * @param {*} children 子元素
+ * @returns 
+ * pre：jsx 会被babel转化为 react.creatElement方法的调用
+ * 1. 分离 props 属性和特殊属性
+ * 2. 将子元素挂载到 props.children 中
+ * 3. 为props属性赋默认值（defaultProps）
+ * 4. 调用ReactElement方法并返回 ReactElement
+ */
 export function createElement(type, config, children) {
+  /**
+   * 属性名称
+   * 用于后续的 for 循环
+   */
   let propName;
 
   // Reserved names are extracted
+  /**
+   * 存储 react Element 中的普通属性 不包含 key、ref、self、source
+   */
   const props = {};
 
+  /**
+   * 待提取属性
+   * react 内部为实现某些功能而存在的属性
+   */
   let key = null;
   let ref = null;
   let self = null;
   let source = null;
 
+  // 分离config中的普通属性和特殊属性
   if (config != null) {
+    // 判断config中是否存在合法的ref属性
     if (hasValidRef(config)) {
       ref = config.ref;
 
+      // 开发环境 判断包裹的代码 是警告性代码  不是主逻辑代码 后续不需要分析
       if (__DEV__) {
         warnIfStringRefCannotBeAutoConverted(config);
       }
     }
+    
+    // 判断config中是否存在合法的key属性
     if (hasValidKey(config)) {
       if (__DEV__) {
         checkKeyStringCoercion(config.key);
       }
+      // 变为字符串key
       key = '' + config.key;
     }
 
     self = config.__self === undefined ? null : config.__self;
     source = config.__source === undefined ? null : config.__source;
     // Remaining properties are added to a new props object
+    // 为 props 变量添加普通属性
     for (propName in config) {
       if (
         hasOwnProperty.call(config, propName) &&
@@ -398,9 +452,16 @@ export function createElement(type, config, children) {
     }
   }
 
-  // Children can be more than one argument, and those are transferred onto
-  // the newly allocated props object.
+  /**
+   * 将第三个及以后的参数挂载到 props.children 属性中
+   * 如果子元素是多个 props.children 是一个数组，否则则为对象
+   * 从第三个及以后的参数开始都表示为子元素
+   */
+
+  // Children can be more than one argument, and those are transferred onto 
+  // the newly allocated props object. 
   const childrenLength = arguments.length - 2;
+  // 存储子元素 动态给定数组或对象
   if (childrenLength === 1) {
     props.children = children;
   } else if (childrenLength > 1) {
@@ -416,7 +477,9 @@ export function createElement(type, config, children) {
     props.children = childArray;
   }
 
-  // Resolve default props
+  /**
+   * 在type属性中获取default props默认值，如果props没有值则把默认值附上去
+   */
   if (type && type.defaultProps) {
     const defaultProps = type.defaultProps;
     for (propName in defaultProps) {
@@ -425,6 +488,9 @@ export function createElement(type, config, children) {
       }
     }
   }
+  /**
+   * 如果在开发环境中通过props获取key和ref是调用告警方法
+   */
   if (__DEV__) {
     if (key || ref) {
       const displayName =
@@ -563,6 +629,8 @@ export function cloneElement(element, config, children) {
  * @param {?object} object
  * @return {boolean} True if `object` is a ReactElement.
  * @final
+ * 验证 object 参数是否是 ReactElement 返回Boolean值
+ * 
  */
 export function isValidElement(object) {
   return (
