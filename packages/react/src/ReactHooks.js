@@ -80,6 +80,7 @@ export function useContext<T>(Context: ReactContext<T>): T {
 export function useState<S>(
   initialState: (() => S) | S,
 ): [S, Dispatch<BasicStateAction<S>>] {
+  // dispatcher 分发器 协调器 每个hooks都有 dispatcher
   const dispatcher = resolveDispatcher();
   return dispatcher.useState(initialState);
 }

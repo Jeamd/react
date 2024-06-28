@@ -426,8 +426,8 @@ export function renderWithHooks<Props, SecondArg>(
   } else {
     ReactCurrentDispatcher.current =
       current === null || current.memoizedState === null
-        ? HooksDispatcherOnMount
-        : HooksDispatcherOnUpdate;
+        ? HooksDispatcherOnMount // 初始化
+        : HooksDispatcherOnUpdate; // 更新
   }
 
   let children = Component(props, secondArg);
@@ -634,6 +634,7 @@ export function resetHooksAfterThrow(): void {
 
 function mountWorkInProgressHook(): Hook {
   const hook: Hook = {
+    // 值的记录变量
     memoizedState: null,
 
     baseState: null,
@@ -724,6 +725,13 @@ function createFunctionComponentUpdateQueue(): FunctionComponentUpdateQueue {
 function basicStateReducer<S>(state: S, action: BasicStateAction<S>): S {
   // $FlowFixMe: Flow doesn't like mixed types
   return typeof action === 'function' ? action(state) : action;
+  /**
+   * 伪代码
+   * const [count, updateCount] = useState()
+   * 
+   * updateCount(count + 1) ==> typeof action !== 'function'
+   * updateCount((state) => state + 1) ==> typeof action === 'function'
+   */
 }
 
 function mountReducer<S, I, A>(
@@ -1509,17 +1517,24 @@ function forceStoreRerender(fiber) {
 function mountState<S>(
   initialState: (() => S) | S,
 ): [S, Dispatch<BasicStateAction<S>>] {
+  // 获取到当前hook，或者创建一个新的
   const hook = mountWorkInProgressHook();
   if (typeof initialState === 'function') {
     // $FlowFixMe: Flow doesn't like mixed types
     initialState = initialState();
   }
+  // 进行值的记录
   hook.memoizedState = hook.baseState = initialState;
+  // 创建一个更新队列
   const queue: UpdateQueue<S, BasicStateAction<S>> = {
     pending: null,
     interleaved: null,
+    // 进行优先级控制，以前是通过 expirationTime 已过期时间来决定更新的优先级
+    // 更好的进行 可中断 跟新 优先级排队插队
     lanes: NoLanes,
+    // 针对操作的处理
     dispatch: null,
+    // 下边俩进行值的缓存
     lastRenderedReducer: basicStateReducer,
     lastRenderedState: (initialState: any),
   };
@@ -2245,8 +2260,10 @@ function dispatchSetState<S, A>(
     }
   }
 
+  // 获取当前更新的优先级
   const lane = requestUpdateLane(fiber);
 
+  // 创建一个更新队列
   const update: Update<S, A> = {
     lane,
     action,
@@ -2255,6 +2272,7 @@ function dispatchSetState<S, A>(
     next: (null: any),
   };
 
+  // 进行fiber对比，寻找更新队列和老队列之间的差异
   if (isRenderPhaseUpdate(fiber)) {
     enqueueRenderPhaseUpdate(queue, update);
   } else {
@@ -2306,9 +2324,11 @@ function dispatchSetState<S, A>(
       }
     }
 
+    // 对比完之后会传到这个队列中进行处理
     const root = enqueueConcurrentHookUpdate(fiber, queue, update, lane);
     if (root !== null) {
       const eventTime = requestEventTime();
+      // 这里是更新的调度器，依据优先级 时间eventTime 还有fiber进行处理
       scheduleUpdateOnFiber(root, fiber, lane, eventTime);
       entangleTransitionUpdate(root, queue, lane);
     }

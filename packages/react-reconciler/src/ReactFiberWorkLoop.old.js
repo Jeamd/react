@@ -428,9 +428,11 @@ export function getWorkInProgressRoot(): FiberRoot | null {
 export function requestEventTime() {
   if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
     // We're inside React, so it's fine to read the actual time.
+    // now 表示优先级提前
     return now();
   }
   // We're not inside React, so we may be in the middle of a browser event.
+  // 在更新间隔内相同，就要进行更新合并？
   if (currentEventTime !== NoTimestamp) {
     // Use the same start time for all updates until we enter React again.
     return currentEventTime;
