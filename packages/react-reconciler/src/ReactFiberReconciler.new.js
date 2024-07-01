@@ -145,7 +145,9 @@ function getContextForSubtree(
     return emptyContextObject;
   }
 
+  // 获取的是组件实例上的_reactInternals属性 暂时不知道是啥，但是看起来应该是 fiber对象
   const fiber = getInstance(parentComponent);
+  // 这个是取得 fiber.stateNode.context
   const parentContext = findCurrentUnmaskedContext(fiber);
 
   if (fiber.tag === ClassComponent) {
@@ -319,7 +321,16 @@ export function createHydrationContainer(
   return root;
 }
 
-// 更新fiberRoot
+/**
+ * 
+ * @param {*} element 要渲染的 ReactElement 
+ * @param {*} container fiber Root对象
+ * @param {*} parentComponent 父组件，初始化渲染为null
+ * @param {*} callback ReactElement 渲染完成执行的回调函数
+ * @returns 
+ * 计算任务过期时间
+ * 再根据任务过期时间 创建 Update 任务
+ */
 export function updateContainer(
   element: ReactNodeList,
   container: OpaqueRoot,
@@ -329,6 +340,7 @@ export function updateContainer(
   if (__DEV__) {
     onScheduleRoot(container, element);
   }
+  // 当前的rootFiber对象
   const current = container.current;
   const eventTime = requestEventTime();
   const lane = requestUpdateLane(current);
@@ -337,6 +349,7 @@ export function updateContainer(
     markRenderScheduled(lane);
   }
 
+  // 设置FiberRoot.cintext 首次执行 parentComponent（父组件） 为null， 返回的是一个 空{}
   const context = getContextForSubtree(parentComponent);
   if (container.context === null) {
     container.context = context;
@@ -361,9 +374,13 @@ export function updateContainer(
     }
   }
 
+  // 创建一个待执行任务
+  // createUpdate函数返回一个带默认值的实例对象
   const update = createUpdate(eventTime, lane);
   // Caution: React DevTools currently depends on this property
   // being called "element".
+  // 将要更新的内容挂载到更新对象中的 payload 中
+  // 将要更新的组件存储在 payload 对象中，方便后期存取
   update.payload = {element};
 
   callback = callback === undefined ? null : callback;
@@ -380,9 +397,17 @@ export function updateContainer(
     update.callback = callback;
   }
 
+  /**
+   * 将update对象加入到 当前 Fiber 的更新队列中 （updateQueue 属性中， 它是fiber对象结构中的一个属性）
+   * 待执行的任务 都会被存储在 fiber.undateQueue.shared.pending 中
+   * 返回fiberRoot
+   */
   const root = enqueueUpdate(current, update, lane);
   if (root !== null) {
+    // 调度和更新current(rootFiber)对象
     scheduleUpdateOnFiber(root, current, lane, eventTime);
+    // 新特性Transition
+    // useTransition 是一个帮助你在不阻塞 UI 的情况下更新状态的 React Hook。todo
     entangleTransitions(root, current, lane);
   }
 
@@ -399,14 +424,28 @@ export {
   flushPassiveEffects,
 };
 
+/**
+ * 获取 container 的第一个子元素的实例对象
+ * @param {*} container 
+ * @returns 
+ */
 export function getPublicRootInstance(
+  // fiberRoot
   container: OpaqueRoot,
 ): React$Component<any, any> | PublicInstance | null {
+  // 获取rootFiber
   const containerFiber = container.current;
+  // 如果 rootFiber 没有子元素
+  // ☞的就是 id="root" 的 div 没有子元素
   if (!containerFiber.child) {
     return null;
   }
+
+  // 指向自己的第一个子级的 Fiber 对象
+  // fiber.child: Fiber | null,
+
   switch (containerFiber.child.tag) {
+    // 普通的 ReactElement
     case HostComponent:
       return getPublicInstance(containerFiber.child.stateNode);
     default:

@@ -244,9 +244,19 @@ export function resolveLazyComponentTag(Component: Function): WorkTag {
   }
   return IndeterminateComponent;
 }
-
+// 构建 workInPropgress Fiber 树中的 rootFiber
+// 构建完成后会替换 current Fiber
+// 初始渲染 pendingProps 为 null
+// current Fiber 和 workInProgress 通过 alternate 属性进行关联
 // This is used to create an alternate fiber to do work on.
+/**
+ * 
+ * @param {*} current rootFiber
+ * @param {*} pendingProps 初始化时为 null
+ * @returns 
+ */
 export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
+  // 通过 alternate 属性获取 current Fiber 对应的 workInProgress
   let workInProgress = current.alternate;
   if (workInProgress === null) {
     // We use a double buffering pooling technique because we know that we'll
@@ -260,6 +270,7 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
       current.key,
       current.mode,
     );
+    // 属性复用
     workInProgress.elementType = current.elementType;
     workInProgress.type = current.type;
     workInProgress.stateNode = current.stateNode;
@@ -272,6 +283,7 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
       workInProgress._debugHookTypes = current._debugHookTypes;
     }
 
+    // 通过 alternate 属性关联 current Fiber
     workInProgress.alternate = current;
     current.alternate = workInProgress;
   } else {

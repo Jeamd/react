@@ -131,6 +131,7 @@ function FiberRootNode(
   }
 }
 
+// 创建根节点对应的 fiberRoot 对象
 export function createFiberRoot(
   containerInfo: any,
   tag: RootTag,
@@ -147,6 +148,7 @@ export function createFiberRoot(
   onRecoverableError: null | ((error: mixed) => void),
   transitionCallbacks: null | TransitionTracingCallbacks,
 ): FiberRoot {
+  // 创建FiberRoot
   const root: FiberRoot = (new FiberRootNode(
     containerInfo,
     tag,
@@ -164,12 +166,15 @@ export function createFiberRoot(
 
   // Cyclic construction. This cheats the type system right now because
   // stateNode is any.
+  // 创建rootFiber
   const uninitializedFiber = createHostRootFiber(
     tag,
     isStrictMode,
     concurrentUpdatesByDefaultOverride,
   );
+  // 给FiberRoot添加current 指向 rootFiber
   root.current = uninitializedFiber;
+  // 给rootFuber 添加 stateNode 指向 fiberRoot
   uninitializedFiber.stateNode = root;
 
   if (enableCache) {
@@ -204,6 +209,9 @@ export function createFiberRoot(
     uninitializedFiber.memoizedState = initialState;
   }
 
+  // 为 fiber 对象添加 updateQueue 属性,初始化 updateQueue 对象
+  // updateQueue 用于存放 Update对象
+  // Update 对象 用于记录组件状态的改变
   initializeUpdateQueue(uninitializedFiber);
 
   return root;

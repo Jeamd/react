@@ -286,11 +286,16 @@ if (__DEV__) {
 }
 
 export function reconcileChildren(
+  // 旧的 fiber
   current: Fiber | null,
+  // 父级 fiber
   workInProgress: Fiber,
+  // 子级 vDom
   nextChildren: any,
+
   renderLanes: Lanes,
 ) {
+  // 如果fiber 为 null 代表 初始渲染
   if (current === null) {
     // If this is a fresh new component that hasn't been rendered yet, we
     // won't update its child set by applying minimal side-effects. Instead,
@@ -1296,14 +1301,22 @@ function updateHostRoot(current, workInProgress, renderLanes) {
     throw new Error('Should have a current fiber. This is a bug in React.');
   }
 
+  // 获取新的 props 对象 初始化为 null
   const nextProps = workInProgress.pendingProps;
+  // 获取上一个渲染使用的 state 初始化为 null
   const prevState = workInProgress.memoizedState;
+  // 获取上一个渲染使用的 Child 初始化为 null
   const prevChildren = prevState.element;
+  // 浅拷贝跟新队列, 防止引用属性相互影响
   cloneUpdateQueue(current, workInProgress);
+  // 获取 updateQueue.payload 并赋值待 workInProgress.memoizedState (旧的state)
+  // 要更新的内容就是 element 就是 rootFiber 的子元素
   processUpdateQueue(workInProgress, nextProps, null, renderLanes);
 
+  // 获取 element 所在的对象
   const nextState: RootState = workInProgress.memoizedState;
   const root: FiberRoot = workInProgress.stateNode;
+  // 处理transition,先不看
   pushRootTransition(workInProgress, root, renderLanes);
 
   if (enableCache) {
@@ -1317,6 +1330,7 @@ function updateHostRoot(current, workInProgress, renderLanes) {
 
   // Caution: React DevTools currently depends on this property
   // being called "element".
+  // 从对象中获取 element
   const nextChildren = nextState.element;
   if (supportsHydration && prevState.isDehydrated) {
     // This is a hydration root whose shell has not yet hydrated. We should
@@ -1414,6 +1428,7 @@ function updateHostRoot(current, workInProgress, renderLanes) {
     if (nextChildren === prevChildren) {
       return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes);
     }
+    // 构建子节点 fiber 对象 挂载到 child 属性上
     reconcileChildren(current, workInProgress, nextChildren, renderLanes);
   }
   return workInProgress.child;
@@ -3791,7 +3806,9 @@ function beginWork(
   // move this assignment out of the common path and into each branch.
   workInProgress.lanes = NoLanes;
 
+  // 根据不同的类型获取子集对象
   switch (workInProgress.tag) {
+    // 函数组件第一次会匹配到这里
     case IndeterminateComponent: {
       return mountIndeterminateComponent(
         current,

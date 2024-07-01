@@ -214,17 +214,23 @@ export function createUpdate(eventTime: number, lane: Lane): Update<*> {
   return update;
 }
 
+// 将createUpdate函数创建的任务对象，存放于任务队列中（updateQueue）
+// 创建单向链变结构存放 update，next用来窗帘update
 export function enqueueUpdate<State>(
   fiber: Fiber,
   update: Update<State>,
   lane: Lane,
 ): FiberRoot | null {
+  // 获取当前 fiber 的更新队列
   const updateQueue = fiber.updateQueue;
   if (updateQueue === null) {
     // Only occurs if the fiber has been unmounted.
+    // 只有 在 fier 已经被卸载了才会为空
     return null;
   }
 
+  // 获取待执行的 Update 任务
+  // 初始化渲染时没有待执行的任务
   const sharedQueue: SharedQueue<State> = (updateQueue: any).shared;
 
   if (__DEV__) {
@@ -253,12 +259,17 @@ export function enqueueUpdate<State>(
       update.next = pending.next;
       pending.next = update;
     }
+    // 将 Update 任务存储在 pending 属性中
     sharedQueue.pending = update;
 
     // Update the childLanes even though we're most likely already rendering
     // this fiber. This is for backwards compatibility in the case where you
     // update a different component during render phase than the one that is
     // currently renderings (a pattern that is accompanied by a warning).
+    //即使我们很可能已经在渲染，也要更新childLanes
+    //这种纤维。这是为了在您
+    //在渲染阶段更新与以下组件不同的组件
+    //当前渲染（伴随警告的图案）。
     return unsafe_markUpdateLaneFromFiberToRoot(fiber, lane);
   } else {
     return enqueueConcurrentClassUpdate(fiber, sharedQueue, update, lane);

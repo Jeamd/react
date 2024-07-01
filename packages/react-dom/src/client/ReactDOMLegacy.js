@@ -108,6 +108,15 @@ function noopOnRecoverableError() {
   // legacy API.
 }
 
+/**
+ * 
+ * @param {*} container 要挂载的 元素 实例
+ * @param {*} initialChildren 要挂载的子组件  ReactElement
+ * @param {*} parentComponent 父组件
+ * @param {*} callback 
+ * @param {*} isHydrationContainer 是否为服务端渲染
+ * @returns 
+ */
 function legacyCreateRootFromDOMContainer(
   container: Container,
   initialChildren: ReactNodeList,
@@ -144,11 +153,15 @@ function legacyCreateRootFromDOMContainer(
       container.nodeType === COMMENT_NODE ? container.parentNode : container;
     listenToAllSupportedEvents(rootContainerElement);
 
+    // 同步更新
     flushSync();
     return root;
   } else {
     // First clear any existing content.
     let rootSibling;
+    // 清空要挂载的 元素实例中的节点
+    // 只允许挂载 子组件
+    // 说是为了请求占位图或者loading动画
     while ((rootSibling = container.lastChild)) {
       container.removeChild(rootSibling);
     }
@@ -156,14 +169,19 @@ function legacyCreateRootFromDOMContainer(
     if (typeof callback === 'function') {
       const originalCallback = callback;
       callback = function() {
-        const instance = getPublicRootInstance(root);
+        // 获取fiberRoot的第一个子元素的（组件、DOM、null）实例
+        // fiber.child.stateNode
+        // 这里root指的是fiberRoot
+        const instance = getPublicRootInstance(root); 
+        // 这里instange就是react.render方法中的第一个参数
         originalCallback.call(instance);
       };
     }
 
+    // 这是 fiberRoot
     const root = createContainer(
-      container,
-      LegacyRoot,
+      container, // 容器节点
+      LegacyRoot, // 节点类型 Fiber中 的tag
       null, // hydrationCallbacks
       false, // isStrictMode
       false, // concurrentUpdatesByDefaultOverride,
@@ -171,6 +189,7 @@ function legacyCreateRootFromDOMContainer(
       noopOnRecoverableError, // onRecoverableError
       null, // transitionCallbacks
     );
+    // 给容器的挂载节点加上标记
     container._reactRootContainer = root;
     markContainerAsRoot(root.current, container);
 
@@ -179,6 +198,9 @@ function legacyCreateRootFromDOMContainer(
     listenToAllSupportedEvents(rootContainerElement);
 
     // Initial mount should not be batched.
+    // 初始化渲染要去同步更新
+    // 因为批量更新是异步的是可以打断的，但是初始化渲染应该尽快完成不能被打断
+    // 所以通过 flushSync 进行同步更新
     flushSync(() => {
       updateContainer(initialChildren, root, parentComponent, callback);
     });
@@ -200,6 +222,15 @@ function warnOnInvalidCallback(callback: mixed, callerName: string): void {
   }
 }
 
+/**
+ * 将子树渲染到容器中(初始化 Fiber 数据结构: 创建 fiberRoot 及 rootFiber)
+ * @param {*} parentComponent 父组件,初始化渲染传了 null 
+ * @param {*} children 要渲染的 ReactElement 元素
+ * @param {*} container 渲染挂载的容器
+ * @param {*} forceHydrate 是否为服务端渲染
+ * @param {*} callback 组件渲染完成后需要执行的回调函数
+ * @returns  返回 fiberRoot 的 current.child.stateNode 就是 rootFiber的第一个元素的实例对象 组件实例或者DOM实例或者null（函数式组件没有自己的实例对象）
+ */
 function legacyRenderSubtreeIntoContainer(
   parentComponent: ?React$Component<any, any>,
   children: ReactNodeList,
@@ -212,13 +243,28 @@ function legacyRenderSubtreeIntoContainer(
     warnOnInvalidCallback(callback === undefined ? null : callback, 'render');
   }
 
+  /**
+   * 检测 container 对象中是否存在 _reactRootContainer 属性
+   * 存在表示一个是初始化过的渲染容器
+   * maybeRoot 不存在 表示正在进行初始化渲染
+   * maybeRoot 存在 表示正在进行更新
+   * 
+   * react 在初始渲染时会在最外层容器 添加上 _reactRootContainer 属性
+   * react 根据此属性进行不同的渲染方式
+   */
   const maybeRoot = container._reactRootContainer;
   let root: FiberRoot;
   if (!maybeRoot) {
-    // Initial mount
+    // Initial mount 初始化 挂载
+    // 创建 fiberRoot 和 rootFiber
+    // 返回值是 fiberRoot
+    // 还会添加 _reactRootContainer 属性
     root = legacyCreateRootFromDOMContainer(
+      // 要挂载的容器
       container,
+      // 要挂载的子组件
       children,
+      // 父组件
       parentComponent,
       callback,
       forceHydrate,
@@ -322,6 +368,14 @@ export function hydrate(
   );
 }
 
+/**
+ * 
+ * @param {*} element 要进行渲染的 ReactElement 就是creatElemment函数的返回值
+ * @param {*} container 渲染容器 比如 id=root 的 div 实例
+ * @param {*} callback 渲染完成后的回调函数
+ * @returns 
+ * React.render(<App />, document.getElementById("root"))
+ */
 export function render(
   element: React$Element<any>,
   container: Container,
@@ -335,7 +389,7 @@ export function render(
         'more: https://reactjs.org/link/switch-to-createroot',
     );
   }
-
+  // DOM 元素检查
   if (!isValidContainerLegacy(container)) {
     throw new Error('Target container is not a DOM element.');
   }
@@ -352,10 +406,15 @@ export function render(
       );
     }
   }
+  // 渲染子树到container当中
   return legacyRenderSubtreeIntoContainer(
+    // 父组件
     null,
+    // 要渲染的组件
     element,
+    // 要挂载的容器
     container,
+    // 是否为服务器端渲染
     false,
     callback,
   );

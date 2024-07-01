@@ -1353,8 +1353,9 @@ function ChildReconciler(shouldTrackSideEffects) {
 
   return reconcileChildFibers;
 }
-
+// 用于更新
 export const reconcileChildFibers = ChildReconciler(true);
+// 用于初始渲染
 export const mountChildFibers = ChildReconciler(false);
 
 export function cloneChildFibers(

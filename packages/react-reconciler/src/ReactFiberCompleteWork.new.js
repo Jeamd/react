@@ -1007,6 +1007,7 @@ function completeWork(
             markUpdate(workInProgress);
           }
         } else {
+          // 创建节点实例对象
           const instance = createInstance(
             type,
             newProps,

@@ -530,12 +530,23 @@ function requestRetryLane(fiber: Fiber) {
   return claimNextRetryLane();
 }
 
+/**
+ * 
+ * @param {*} root current(rootFiber) 挂载了 updateQueue 更新队列的 fiberRoot
+ * @param {*} fiber 初始化渲染时为 rootFiber 即<div id="root" /> 对应的 Fiber 对象
+ * @param {*} lane 
+ * @param {*} eventTime 
+ * 判断任务是否为同步任务 如果是 则调用同步任务入口
+ */
 export function scheduleUpdateOnFiber(
   root: FiberRoot,
   fiber: Fiber,
   lane: Lane,
   eventTime: number,
 ) {
+  /**
+   * 判断是否是嵌套无限循环的 update 如果是 就报错
+   */
   checkForNestedUpdates();
 
   if (__DEV__) {
@@ -550,7 +561,7 @@ export function scheduleUpdateOnFiber(
     }
   }
 
-  // Mark that the root has a pending update.
+  // Mark that the root has a pending update.标记根具有挂起的更新。
   markRootUpdated(root, lane, eventTime);
 
   if (
@@ -578,6 +589,7 @@ export function scheduleUpdateOnFiber(
       }
     }
 
+    // 看起来是个警告型语句
     warnIfUpdatesNotWrappedWithActDEV(fiber);
 
     if (enableProfilerTimer && enableProfilerNestedUpdateScheduledHook) {
@@ -637,6 +649,7 @@ export function scheduleUpdateOnFiber(
       }
     }
 
+    // 这里开始为根节点调度跟新,我猜的
     ensureRootIsScheduled(root, eventTime);
     if (
       lane === SyncLane &&
@@ -694,6 +707,7 @@ export function isUnsafeClassRenderPhaseUpdate(fiber: Fiber) {
 // root has work on. This function is called on every update, and right before
 // exiting a task.
 function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
+  // 表示下一次循环要处理的任务
   const existingCallbackNode = root.callbackNode;
 
   // Check if any lanes are being starved by other work. If so, mark them as
@@ -1226,6 +1240,7 @@ function markRootSuspended(root, suspendedLanes) {
 
 // This is the entry point for synchronous tasks that don't go
 // through Scheduler
+// 进入 render 阶段,构建 workInProgress Fiber 树
 function performSyncWorkOnRoot(root) {
   if (enableProfilerTimer && enableProfilerNestedUpdatePhase) {
     syncNestedUpdateFlag();
@@ -1235,6 +1250,7 @@ function performSyncWorkOnRoot(root) {
     throw new Error('Should not already be working.');
   }
 
+  // 处理 useEffect
   flushPassiveEffects();
 
   let lanes = getNextLanes(root, NoLanes);
@@ -1244,6 +1260,7 @@ function performSyncWorkOnRoot(root) {
     return null;
   }
 
+  // 构建 workInProgress Fiber 树 及 rootFiber
   let exitStatus = renderRootSync(root, lanes);
   if (root.tag !== LegacyRoot && exitStatus === RootErrored) {
     // If something threw an error, try rendering one more time. We'll render
@@ -1448,11 +1465,19 @@ export function popRenderLanes(fiber: Fiber) {
   popFromStack(subtreeRenderLanesCursor, fiber);
 }
 
+/**
+ * 
+ * @param {*} root fiberRoot  
+ * @param {*} lanes 时间戳之前用的是过期时间
+ * @returns 
+ */
 function prepareFreshStack(root: FiberRoot, lanes: Lanes): Fiber {
-  root.finishedWork = null;
-  root.finishedLanes = NoLanes;
+  // 为 fiberRoot 添加下边俩属性
+  root.finishedWork = null; // 表示 render 阶段执行完成后构建的待提交的 Fiber 对象
+  root.finishedLanes = NoLanes; // 完成时间初始为 0 
 
   const timeoutHandle = root.timeoutHandle;
+  // 初始化渲染不执行
   if (timeoutHandle !== noTimeout) {
     // The root previous suspended and scheduled a timeout to commit a fallback
     // state. Now that we have additional work, cancel the timeout.
@@ -1461,6 +1486,8 @@ function prepareFreshStack(root: FiberRoot, lanes: Lanes): Fiber {
     cancelTimeout(timeoutHandle);
   }
 
+
+  // 初始化渲染不执行 workInProgress 全局变量 初始值为 null
   if (workInProgress !== null) {
     let interruptedWork = workInProgress.return;
     while (interruptedWork !== null) {
@@ -1473,7 +1500,9 @@ function prepareFreshStack(root: FiberRoot, lanes: Lanes): Fiber {
       interruptedWork = interruptedWork.return;
     }
   }
+  // 构建 workInProgress Fiber 树 的 fiberRoot 对象
   workInProgressRoot = root;
+  // 构建 workInProgress Fiber 树中的 rootFiber
   const rootWorkInProgress = createWorkInProgress(root.current, null);
   workInProgress = rootWorkInProgress;
   workInProgressRootRenderLanes = subtreeRenderLanes = workInProgressRootIncludedLanes = lanes;
@@ -1684,7 +1713,9 @@ function renderRootSync(root: FiberRoot, lanes: Lanes) {
       }
     }
 
+    // transition 特性 先不管他
     workInProgressTransitions = getTransitionsForLanes(root, lanes);
+    // 构建 workInProgress树 就是 rootFiber
     prepareFreshStack(root, lanes);
   }
 
@@ -1700,6 +1731,9 @@ function renderRootSync(root: FiberRoot, lanes: Lanes) {
 
   do {
     try {
+      // 开启一个循环以同步的方法 开始构建 Fiber 对象
+      // 16 之前 采用 递归的方式来构建 子集Fiber对象
+      // 16 之后 采用 循环模拟的方式来构建 子集 Fiber 对象
       workLoopSync();
       break;
     } catch (thrownValue) {
@@ -1740,6 +1774,8 @@ function renderRootSync(root: FiberRoot, lanes: Lanes) {
 /** @noinline */
 function workLoopSync() {
   // Already timed out, so perform work without checking if we need to yield.
+  // 初始时 workInProgress是 rootFiber
+  // while 方法 支撑 render 阶段 所有除 rootFiber外的 子集 fiber 节点的构建
   while (workInProgress !== null) {
     performUnitOfWork(workInProgress);
   }
@@ -1846,6 +1882,8 @@ function performUnitOfWork(unitOfWork: Fiber): void {
     next = beginWork(current, unitOfWork, subtreeRenderLanes);
     stopProfilerTimerIfRunningAndRecordDelta(unitOfWork, true);
   } else {
+    // beginWork:从父级到子级,构建Fiber节点对象
+    // 返回值 next 为当前节点的子节点
     next = beginWork(current, unitOfWork, subtreeRenderLanes);
   }
 
@@ -1853,6 +1891,7 @@ function performUnitOfWork(unitOfWork: Fiber): void {
   unitOfWork.memoizedProps = unitOfWork.pendingProps;
   if (next === null) {
     // If this doesn't spawn new work, complete the current work.
+    // 从子级到父级,构建其余节点 Fiber 对象
     completeUnitOfWork(unitOfWork);
   } else {
     workInProgress = next;
@@ -1861,6 +1900,14 @@ function performUnitOfWork(unitOfWork: Fiber): void {
   ReactCurrentOwner.current = null;
 }
 
+/**
+ * 
+ * @param {*} unitOfWork 当前fiber对象
+ * @returns 
+ * 1. 如何从子到父创建 fiber 对象
+ * 2. 创建每一个节点的真实 DOM 对象并将其添加到 stateNode 属性中
+ * 3. 收集要执行 DOM 操作的 Fiber 节点,组建 effect 链表结构 挂载到 rootFiber 顶层
+ */
 function completeUnitOfWork(unitOfWork: Fiber): void {
   // Attempt to complete the current unit of work, then move to the next
   // sibling. If there are no more siblings, return to the parent fiber.
@@ -1880,6 +1927,8 @@ function completeUnitOfWork(unitOfWork: Fiber): void {
         !enableProfilerTimer ||
         (completedWork.mode & ProfileMode) === NoMode
       ) {
+        // 重点代码2
+        // 创建节点真实 DOM 对象,并将其添加到 stateNode属性中
         next = completeWork(current, completedWork, subtreeRenderLanes);
       } else {
         startProfilerTimer(completedWork);
