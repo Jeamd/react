@@ -559,7 +559,14 @@ function commitHookEffectListUnmount(
   }
 }
 
+/**
+ * 
+ * @param {*} flags 
+ * @param {*} finishedWork 
+ * 函数组件的effect处理
+ */
 function commitHookEffectListMount(flags: HookFlags, finishedWork: Fiber) {
+  // effect 都存在于 任务队列当中
   const updateQueue: FunctionComponentUpdateQueue | null = (finishedWork.updateQueue: any);
   const lastEffect = updateQueue !== null ? updateQueue.lastEffect : null;
   if (lastEffect !== null) {
@@ -577,6 +584,7 @@ function commitHookEffectListMount(flags: HookFlags, finishedWork: Fiber) {
 
         // Mount
         const create = effect.create;
+        // create 就是 useEffect 方法的第一个参数 就是副作用函数
         if (__DEV__) {
           if ((flags & HookInsertion) !== NoHookEffect) {
             setIsRunningInsertionEffect(true);
@@ -642,6 +650,7 @@ function commitHookEffectListMount(flags: HookFlags, finishedWork: Fiber) {
           }
         }
       }
+      // 跟新循环条件
       effect = effect.next;
     } while (effect !== firstEffect);
   }
@@ -740,8 +749,10 @@ function commitLayoutEffectOnFiber(
       }
       case ClassComponent: {
         const instance = finishedWork.stateNode;
+        // 如果在类组件中存在生命周期函数判断条件成立
         if (finishedWork.flags & Update) {
           if (!offscreenSubtreeWasHidden) {
+            // 初始渲染阶段
             if (current === null) {
               // We could update instance props and state here,
               // but instead we rely on them being set during last render.
@@ -788,6 +799,7 @@ function commitLayoutEffectOnFiber(
                 instance.componentDidMount();
               }
             } else {
+              // 更新阶段
               const prevProps =
                 finishedWork.elementType === finishedWork.type
                   ? current.memoizedProps
@@ -888,6 +900,7 @@ function commitLayoutEffectOnFiber(
           // We could update instance props and state here,
           // but instead we rely on them being set during last render.
           // TODO: revisit this when we implement resuming.
+          // 执行渲染完成之后的回调函数
           commitUpdateQueue(finishedWork, updateQueue, instance);
         }
         break;
@@ -1501,6 +1514,7 @@ function commitPlacement(finishedWork: Fiber): void {
   }
 
   // Recursively insert all host nodes into the parent.
+  // 获取非组件父级
   const parentFiber = getHostParentFiber(finishedWork);
 
   // Note: these two variables *must* always be updated together.
@@ -2096,9 +2110,12 @@ function commitMutationEffectsOnFiber(
     case ForwardRef:
     case MemoComponent:
     case SimpleMemoComponent: {
+      // 删除
       recursivelyTraverseMutationEffects(root, finishedWork, lanes);
+      // 插入
       commitReconciliationEffects(finishedWork);
 
+      // 跟新
       if (flags & Update) {
         try {
           commitHookEffectListUnmount(

@@ -690,12 +690,15 @@ export function checkHasForceUpdateAfterProcessing(): boolean {
   return hasForceUpdate;
 }
 
+ // 执行渲染完成之后的回调函数
 export function commitUpdateQueue<State>(
   finishedWork: Fiber,
   finishedQueue: UpdateQueue<State>,
   instance: any,
 ): void {
   // Commit the effects
+  // effects 为数组 存储任务对象（Update 对象）
+  // 但前提是在调用 render 方法 时 传递了回调函数，就是 render方法的第三个参数
   const effects = finishedQueue.effects;
   finishedQueue.effects = null;
   if (effects !== null) {

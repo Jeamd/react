@@ -1288,9 +1288,13 @@ function performSyncWorkOnRoot(root) {
 
   // We now have a consistent tree. Because this is a sync render, we
   // will commit it even if something suspended.
-  const finishedWork: Fiber = (root.current.alternate: any);
+  // 将构建好的新的Fiber对象存储在 finishedWork 属性中
+  // 提交阶段使用
+  const finishedWork: Fiber = (root.current.alternate: any); // 构建好的 workInProgress 树
   root.finishedWork = finishedWork;
   root.finishedLanes = lanes;
+  // 结束 render 阶段
+  // 进入 commit 阶段
   commitRoot(
     root,
     workInProgressRootRecoverableErrors,
@@ -2016,11 +2020,13 @@ function commitRoot(
 ) {
   // TODO: This no longer makes any sense. We already wrap the mutation and
   // layout phases. Should be able to remove.
+  // 获取任务优先级
   const previousUpdateLanePriority = getCurrentUpdatePriority();
   const prevTransition = ReactCurrentBatchConfig.transition;
 
   try {
     ReactCurrentBatchConfig.transition = null;
+    // 设置当前跟新优先级（同步）
     setCurrentUpdatePriority(DiscreteEventPriority);
     commitRootImpl(
       root,
@@ -2191,6 +2197,9 @@ function commitRootImpl(
     // The first phase a "before mutation" phase. We use this phase to read the
     // state of the host tree right before we mutate it. This is where
     // getSnapshotBeforeUpdate is called.
+
+    // commit 提交的第一阶段
+    // 调用类组件的 getSnapshotBeforeUpdate  生命周期函数
     const shouldFireAfterActiveInstanceBlur = commitBeforeMutationEffects(
       root,
       finishedWork,
@@ -2209,6 +2218,8 @@ function commitRootImpl(
     }
 
     // The next phase is the mutation phase, where we mutate the host tree.
+    // commit 提交的第二阶段
+    // 根据 flags 执行 DOM 操作 进行插入 删除 更新
     commitMutationEffects(root, finishedWork, lanes);
 
     if (enableCreateEventHandleAPI) {
@@ -2235,6 +2246,8 @@ function commitRootImpl(
     if (enableSchedulingProfiler) {
       markLayoutEffectsStarted(lanes);
     }
+    // commit 提交的第三阶段
+    // DOM操作已完成，调用l类组件的生命周期函数，函数组件的钩子函数
     commitLayoutEffects(finishedWork, root, lanes);
     if (__DEV__) {
       if (enableDebugTracing) {

@@ -210,7 +210,7 @@ let updateHostComponent;
 let updateHostText;
 if (supportsMutation) {
   // Mutation mode
-
+// 将所有子级追加到父级中
   appendAllChildren = function(
     parent: Instance,
     workInProgress: Fiber,
@@ -219,9 +219,12 @@ if (supportsMutation) {
   ) {
     // We only have the top Fiber that was created but we need recurse down its
     // children to find all the terminal nodes.
+    // 获取子集
     let node = workInProgress.child;
     while (node !== null) {
+      // 如果 node 是普通的 ReactElement 或者文本
       if (node.tag === HostComponent || node.tag === HostText) {
+        // 将子集追加到父级中
         appendInitialChild(parent, node.stateNode);
       } else if (node.tag === HostPortal) {
         // If we have a portal child, then we don't want to traverse
@@ -232,16 +235,23 @@ if (supportsMutation) {
         node = node.child;
         continue;
       }
+      // 说明node已经退回到父级 终止循环
+      // 说明此时所有的子级都已经追加到父级了
       if (node === workInProgress) {
         return;
       }
+      // 处理子级兄弟节点
       while (node.sibling === null) {
+        // 如果节点没有父级或者节点的父级是自己，退出循环
+        // 说明此时所有子级都已经追加到父级中了
         if (node.return === null || node.return === workInProgress) {
           return;
         }
         node = node.return;
       }
+      // 更新父级 方便回退
       node.sibling.return = node.return;
+      // 将node 更新为下一个兄弟节点
       node = node.sibling;
     }
   };
